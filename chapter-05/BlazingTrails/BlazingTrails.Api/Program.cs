@@ -1,16 +1,23 @@
 using BlazingTrails.Api.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using FluentValidation.AspNetCore;
 using System.Reflection;
 
-var builder = WebApplication.CreateBuilder(args);
+var host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices((context, services) =>
+    {
+        // Add services to the container.
+        services.AddDbContext<BlazingTrailsContext>(options =>
+            options.UseSqlite(context.Configuration.GetConnectionString("BlazingTrailsContext")));
+        
+        services.AddControllers().AddFluentValidation(fv => 
+            fv.RegisterValidatorsFromAssembly(Assembly.Load("BlazingTrails.Shared")));
+    })
+    .Build();
 
-// Add services to the container.
-builder.Services.AddDbContext<BlazingTrailsContext>(options => options.UseSqlite(builder.Configuration.GetConnectionString("BlazingTrailsContext")));
-builder.Services.AddControllers().AddFluentValidation(fv => fv.RegisterValidatorsFromAssembly(Assembly.Load("BlazingTrails.Shared")));
-
-var app = builder.Build();
+var app = host.Services.GetRequiredService<IHostApplicationLifetime>().Application;
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -28,4 +35,4 @@ app.UseRouting();
 app.MapControllers();
 app.MapFallbackToFile("index.html");
 
-app.Run();
+await app.RunAsync();
