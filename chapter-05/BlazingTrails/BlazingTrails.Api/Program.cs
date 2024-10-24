@@ -1,38 +1,63 @@
 using BlazingTrails.Api.Persistence;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using FluentValidation.AspNetCore;
 using System.Reflection;
 
-var host = Host.CreateDefaultBuilder(args)
-    .ConfigureServices((context, services) =>
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        CreateHostBuilder(args).Build().Run();
+    }
+
+    public static IHostBuilder CreateHostBuilder(string[] args) =>
+        Host.CreateDefaultBuilder(args)
+            .ConfigureWebHostDefaults(webBuilder =>
+            {
+                webBuilder.UseStartup<Startup>();
+            });
+}
+
+public class Startup
+{
+    public void ConfigureServices(IServiceCollection services)
     {
         // Add services to the container.
         services.AddDbContext<BlazingTrailsContext>(options =>
-            options.UseSqlite(context.Configuration.GetConnectionString("BlazingTrailsContext")));
-        
-        services.AddControllers().AddFluentValidation(fv => 
+            options.UseSqlite("YourConnectionStringHere")); // Замените на вашу строку подключения
+
+        services.AddControllers().AddFluentValidation(fv =>
             fv.RegisterValidatorsFromAssembly(Assembly.Load("BlazingTrails.Shared")));
-    })
-    .Build();
+    }
 
-var app = host.Services.GetRequiredService<IHostApplicationLifetime>().Application;
+    public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+    {
+        // Configure the HTTP request pipeline.
+        if (env.IsDevelopment())
+        {
+            app.UseDeveloperExceptionPage(); // Для отладки в режиме разработки
+        }
+        else
+        {
+            app.UseExceptionHandler("/Home/Error"); // Обработка ошибок в продакшене
+            app.UseHsts();
+        }
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseWebAssemblyDebugging();
+        app.UseHttpsRedirection();
+        app.UseStaticFiles();
+
+        app.UseRouting();
+
+        app.UseAuthorization();
+
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+            endpoints.MapFallbackToFile("index.html"); // Используйте "index.html" для Blazor
+        });
+    }
 }
-
-app.UseHttpsRedirection();
-
-app.UseBlazorFrameworkFiles();
-app.UseStaticFiles();
-
-app.UseRouting();
-
-app.MapControllers();
-app.MapFallbackToFile("index.html");
-
-await app.RunAsync();
